@@ -38,9 +38,8 @@ jobs:
       # Example: compiles src/scss/main.scss → src/css/main.css
       - name: Compile Sass to CSS
         run: |
-          sass --style=compressed --no-source-map \
-            src/scss:src/css \
-            || echo "No SCSS files found or compilation failed — continuing anyway"
+          sass --style=compressed --no-source-map app.sass app.css \
+            || echo "Sass compilation failed — check if app.sass exists"
 
       # Optional: Basic HTML validation (good for catching broken tags)
       - name: Validate HTML
