@@ -1,0 +1,75 @@
+name: Build & Deploy Static Site to GitHub Pages
+
+on:
+  push:
+    branches: [main]           # or master
+  pull_request:
+    branches: [main]
+  workflow_dispatch:           # allows manual run from Actions tab
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── Install Sass compiler (dart-sass is the modern one) ──
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Sass
+        run: npm install -g sass
+
+      # ── Compile all .scss / .sass files to .css ──
+      # Adjust paths below to match your folder structure!
+      # Example: compiles src/scss/main.scss → src/css/main.css
+      - name: Compile Sass to CSS
+        run: |
+          sass --style=compressed --no-source-map \
+            src/scss:src/css \
+            || echo "No SCSS files found or compilation failed — continuing anyway"
+
+      # Optional: Basic HTML validation (good for catching broken tags)
+      - name: Validate HTML
+        uses: cyb3rko/html5validator-action@v1.2.0
+        with:
+          root: .               # or ./public if you have a build folder
+          ignore: "Consider using the “h1” element as a top-level heading."
+
+      # Optional: Basic CSS lint (stylelint)
+      - name: Lint CSS
+        run: |
+          npm install -g stylelint stylelint-config-standard
+          stylelint "**/*.css" --quiet || true   # don't fail build yet
+
+      # ── Upload the entire site as artifact ──
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .               # root if HTML/CSS are already there
+                                # or: ./public / ./dist if you output to a folder
+
+  deploy:
+    if: github.ref == 'refs/heads/main'   # only on main branch
+    needs: build
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
